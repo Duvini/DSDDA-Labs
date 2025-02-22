@@ -1,0 +1,116 @@
+--Write Oracle OR-SQL statements to develop the above database schema
+
+-- Create Object Types
+CREATE TYPE Dept_t;
+CREATE TYPE Emp_t AS OBJECT (
+    eno NUMBER(4),
+    ename VARCHAR2(15),
+    edept REF Dept_t,
+    salary NUMBER(8,2)
+);
+/
+CREATE TYPE Dept_t AS OBJECT (
+    dno NUMBER(2),
+    dname VARCHAR2(12),
+    mgr REF Emp_t
+);
+/
+CREATE TYPE Proj_t AS OBJECT (
+    pno NUMBER(4),
+    pname VARCHAR2(15),
+    pdept REF Dept_t,
+    budget NUMBER(10,2)
+);
+/
+
+-- Create Tables
+CREATE TABLE Dept OF Dept_t (
+    dno PRIMARY KEY
+);
+
+CREATE TABLE Emp OF Emp_t (
+    eno PRIMARY KEY,
+    edept REFERENCES Dept
+);
+
+CREATE TABLE Proj OF Proj_t (
+    pno PRIMARY KEY,
+    pdept REFERENCES Dept
+);
+
+-- Insert data into Dept table
+INSERT INTO Dept VALUES (Dept_t(1, 'HR', NULL));
+INSERT INTO Dept VALUES (Dept_t(2, 'IT', NULL));
+INSERT INTO Dept VALUES (Dept_t(3, 'Finance', NULL));
+
+-- Insert data into Emp table (Managers included)
+DECLARE
+    hr_dept REF Dept_t;
+    it_dept REF Dept_t;
+    fin_dept REF Dept_t;
+BEGIN
+    SELECT REF(d) INTO hr_dept FROM Dept d WHERE d.dno = 1;
+    SELECT REF(d) INTO it_dept FROM Dept d WHERE d.dno = 2;
+    SELECT REF(d) INTO fin_dept FROM Dept d WHERE d.dno = 3;
+
+    INSERT INTO Emp VALUES (Emp_t(101, 'Alice', hr_dept, 50000));
+    INSERT INTO Emp VALUES (Emp_t(102, 'Bob', it_dept, 60000));
+    INSERT INTO Emp VALUES (Emp_t(103, 'Charlie', fin_dept, 70000));
+
+    -- Update Dept table with manager references
+    UPDATE Dept SET mgr = (SELECT REF(e) FROM Emp e WHERE e.eno = 101) WHERE dno = 1;
+    UPDATE Dept SET mgr = (SELECT REF(e) FROM Emp e WHERE e.eno = 102) WHERE dno = 2;
+    UPDATE Dept SET mgr = (SELECT REF(e) FROM Emp e WHERE e.eno = 103) WHERE dno = 3;
+END;
+/
+
+-- Insert data into Proj table
+DECLARE
+    it_dept REF Dept_t;
+    fin_dept REF Dept_t;
+BEGIN
+    SELECT REF(d) INTO it_dept FROM Dept d WHERE d.dno = 2;
+    SELECT REF(d) INTO fin_dept FROM Dept d WHERE d.dno = 3;
+
+    INSERT INTO Proj VALUES (Proj_t(201, 'Project A', it_dept, 75000));
+    INSERT INTO Proj VALUES (Proj_t(202, 'Project B', fin_dept, 50000));
+    INSERT INTO Proj VALUES (Proj_t(203, 'Project C', fin_dept, 90000));
+END;
+/
+SELECT d.dno AS DeptNo, e.ename AS ManagerName, e.salary AS Salary
+FROM Dept d
+JOIN Emp e ON d.mgr = REF(e);
+
+SELECT p.pname AS ProjectName, e.ename AS ManagerName
+FROM Proj p
+JOIN Dept d ON p.pdept = REF(d)
+JOIN Emp e ON d.mgr = REF(e)
+WHERE p.budget > 50000;
+
+SELECT d.dno AS DeptNo, d.dname AS DeptName, SUM(p.budget) AS TotalBudget
+FROM Proj p
+JOIN Dept d ON p.pdept = REF(d)
+GROUP BY d.dno, d.dname;
+
+SELECT e.ename AS ManagerName
+FROM Proj p
+JOIN Dept d ON p.pdept = REF(d)
+JOIN Emp e ON d.mgr = REF(e)
+WHERE p.budget = (SELECT MAX(budget) FROM Proj);
+
+SELECT e.eno AS ManagerID, SUM(p.budget) AS TotalBudget
+FROM Proj p
+JOIN Dept d ON p.pdept = REF(d)
+JOIN Emp e ON d.mgr = REF(e)
+GROUP BY e.eno
+HAVING SUM(p.budget) > 60000;
+
+SELECT e.eno AS ManagerID, SUM(p.budget) AS TotalBudget
+FROM Proj p
+JOIN Dept d ON p.pdept = REF(d)
+JOIN Emp e ON d.mgr = REF(e)
+GROUP BY e.eno
+ORDER BY SUM(p.budget) DESC
+FETCH FIRST 1 ROW ONLY;
+
+
