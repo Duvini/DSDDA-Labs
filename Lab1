@@ -1,0 +1,100 @@
+-- Create Department Table
+CREATE TABLE Department(
+    DeptNo VARCHAR(20) PRIMARY KEY,
+    DeptName CHAR(20),
+    Location VARCHAR(20)    
+);
+
+-- Create Employee Table
+CREATE TABLE Employee(
+    EmpNo VARCHAR(20) PRIMARY KEY,
+    fname CHAR(20),
+    lname CHAR(20),
+    address VARCHAR(40),
+    salary INTEGER,
+    DeptNo VARCHAR(20),
+    FOREIGN KEY (DeptNo) REFERENCES Department(DeptNo)    
+);
+
+-- Create Project Table
+CREATE TABLE Project(
+    ProjNo CHAR(5) PRIMARY KEY,
+    Project_name VARCHAR(20),
+    DeptNo VARCHAR(20),
+    FOREIGN KEY (DeptNo) REFERENCES Department(DeptNo)    
+);
+
+-- Create Works On Table
+CREATE TABLE Works_On(
+    EmpNo VARCHAR(20),
+    ProjNo CHAR(5),
+    DateWorked DATE,
+    Hours INTEGER,
+    PRIMARY KEY (EmpNo, ProjNo),
+    FOREIGN KEY (EmpNo) REFERENCES Employee(EmpNo),
+    FOREIGN KEY (ProjNo) REFERENCES Project(ProjNo)   
+);
+
+-- Insert Data into Department Table
+INSERT INTO Department (DeptNo, DeptName, Location) VALUES ('001', 'Accounts', 'Bangalore');
+INSERT INTO Department (DeptNo, DeptName, Location) VALUES ('002', 'IT', 'Mumbai');
+INSERT INTO Department (DeptNo, DeptName, Location) VALUES ('003', 'ECE', 'Mumbai');
+INSERT INTO Department (DeptNo, DeptName, Location) VALUES ('004', 'ISE', 'Mumbai');
+INSERT INTO Department (DeptNo, DeptName, Location) VALUES ('005', 'CSE', 'Delhi');
+
+-- Insert Data into Employee Table
+INSERT INTO Employee(EmpNo, fname, lname, address, salary, DeptNo) VALUES ('Emp01', 'John', 'Scott', 'Mysore', 45000, '003');
+INSERT INTO Employee(EmpNo, fname, lname, address, salary, DeptNo) VALUES ('Emp02', 'James', 'Smith', 'Bangalore', 50000, '005');
+INSERT INTO Employee(EmpNo, fname, lname, address, salary, DeptNo) VALUES ('Emp03', 'Edward', 'Hedge', 'Bangalore', 65000, '002');
+INSERT INTO Employee(EmpNo, fname, lname, address, salary, DeptNo) VALUES ('Emp04', 'Santhosh', 'Kumar', 'Delhi', 80000, '002');
+INSERT INTO Employee(EmpNo, fname, lname, address, salary, DeptNo) VALUES ('Emp05', 'Veena', 'M', 'Mumbai', 45000, '004');
+
+-- Insert Data into Project Table
+INSERT INTO Project (ProjNo, Project_Name, DeptNo) VALUES ('P01', 'IOT', '005');
+INSERT INTO Project (ProjNo, Project_Name, DeptNo) VALUES ('P02', 'Cloud', '005');
+INSERT INTO Project (ProjNo, Project_Name, DeptNo) VALUES ('P03', 'BankMgmt', '004');
+INSERT INTO Project (ProjNo, Project_Name, DeptNo) VALUES ('P04', 'Sensors', '003');
+INSERT INTO Project (ProjNo, Project_Name, DeptNo) VALUES ('P05', 'BigData', '002');
+
+-- Insert Data into Works On Table
+INSERT INTO Works_On (EmpNo, ProjNo, DateWorked, Hours) VALUES ('Emp02', 'P03', TO_DATE('02-OCT-2018', 'DD-MON-YYYY'), 4);
+INSERT INTO Works_On (EmpNo, ProjNo, DateWorked, Hours) VALUES ('Emp01', 'P02', TO_DATE('22-JAN-2014', 'DD-MON-YYYY'), 13);
+INSERT INTO Works_On (EmpNo, ProjNo, DateWorked, Hours) VALUES ('Emp02', 'P02', TO_DATE('19-JUN-2020', 'DD-MON-YYYY'), 15);
+INSERT INTO Works_On (EmpNo, ProjNo, DateWorked, Hours) VALUES ('Emp02', 'P01', TO_DATE('11-JUN-2020', 'DD-MON-YYYY'), 10);
+INSERT INTO Works_On (EmpNo, ProjNo, DateWorked, Hours) VALUES ('Emp01', 'P04', TO_DATE('08-FEB-2009', 'DD-MON-YYYY'), 6);
+INSERT INTO Works_On (EmpNo, ProjNo, DateWorked, Hours) VALUES ('Emp02', 'P04', TO_DATE('18-OCT-2018', 'DD-MON-YYYY'), 18);
+INSERT INTO Works_On (EmpNo, ProjNo, DateWorked, Hours) VALUES ('Emp01', 'P05', TO_DATE('02-SEP-2011', 'DD-MON-YYYY'), 7);
+
+-- a. Retrieve the name and address of all employees who work for the ‘IT’ department
+SELECT fname, lname, address
+FROM Employee
+WHERE DeptNo = (SELECT DeptNo FROM Department WHERE DeptName = 'IT');
+
+-- b.  Retrieve the salary of every employee
+SELECT salary
+FROM Employee;
+
+-- b. Retrieve the all distinct salary values
+SELECT DISTINCT salary
+FROM Employee;
+
+-- c. Retrieve the names of all employees in department 005 who work more than 10 hours per week on the P01 project
+SELECT fname, lname
+FROM Employee
+WHERE DeptNo = '005' AND EmpNo IN ( SELECT EmpNo
+    								FROM Works_On
+    								WHERE ProjNo = 'P01' AND Hours > 10);
+
+-- d. Retrieve a list of employees and the projects they are working on, ordered by department and, within each department, ordered alphabetically by last name, then first name
+SELECT e.fname, e.lname, e.DeptNo, p.Project_Name
+FROM Employee e
+JOIN Works_On w ON e.EmpNo = w.EmpNo
+JOIN Project p ON w.ProjNO = p.ProjNo
+ORDER BY e.DeptNo, e.lname, e.fname; 
+
+-- Show the resulting salaries of every employee working on the ‘IOT’ project is given a 10 percent raise
+SELECT e.fname, e.lname, e.salary * 1.1 AS "New Salary"
+FROM Employee e
+JOIN Works_On w ON e.EmpNo = w.EmpNo
+JOIN Project p ON w.ProjNO = p.ProjNo
+WHERE p.Project_Name = 'IOT';
