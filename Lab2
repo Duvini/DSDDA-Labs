@@ -1,4 +1,5 @@
 (a)
+
 CREATE TYPE dep_t; 
 /
 
@@ -30,11 +31,15 @@ CREATE TABLE emp of emp_t(
 );
 /
 
+
+
 CREATE TABLE dept of dep_t(
     dno PRIMARY KEY
 );
 /
 
+ALTER TABLE emp ADD CONSTRAINT edept_fk 
+FOREIGN KEY (edept) REFERENCES dept;
     
 ALTER TABLE dept ADD CONSTRAINT dept_mgr_fk 
 FOREIGN KEY (mgr) REFERENCES emp;
@@ -46,8 +51,8 @@ CREATE TABLE proj of proj_t(
 
 ALTER TABLE proj ADD CONSTRAINT pdept_fk 
 FOREIGN KEY (pdept) REFERENCES dept;
-
 (b)
+
 INSERT INTO dept VALUES(dep_t(01,'CSNE',NULL));
 INSERT INTO dept VALUES(dep_t(02,'DS',NULL));
 
@@ -60,8 +65,8 @@ INSERT INTO proj VALUES(proj_t(003,'WIFI2',(SELECT REF (d) FROM dept d WHERE d.d
 
 UPDATE dept d SET d.mgr=(SELECT REF(e) FROM emp e WHERE e.ename='KASUN') WHERE d. dname ='DS';
 UPDATE dept d SET d.mgr=(SELECT REF(e) FROM emp e WHERE e.ename='SUNIL') WHERE d. dname ='CSNE';
-
 (c)
+
 SELECT d.dno, e.ename, e.salary FROM emp e, dept d WHERE d. mgr=REF(e);
 
 (d)
@@ -71,11 +76,11 @@ SELECT p.pname, e.ename FROM proj p, emp e, dept d WHERE REF (e) = d.mgr AND p.p
 SELECT d.dno, d.dname, SUM(p.budget) AS Total_Budget FROM dept d, proj p WHERE p.pdept = REF(d) GROUP BY d.dno, d.dname;
 
 (f)
-SELECT DISTINCT e.ename FROM emp e, proj p WHERE REF(e)= DEREF(p.pdept).mgr AND p.budget = (SELECT MAX(p2.budget) FROM proj p2)
+SELECT DISTINCT e.ename FROM emp e, proj p WHERE REF(e)= DEREF(p.pdept).mgr AND p.budget = (SELECT MAX(p2.budget) FROM proj p2);
 
-(g)
+(g)    
 SELECT e.eno, SUM(p.budget) AS Total_Budget FROM emp e, proj p WHERE REF(e)= DEREF(p.pdept).mgr GROUP BY e.eno HAVING SUM(p.budget)>60000;
 
 (h)
 SELECT e.eno, SUM(p.budget) AS Total_Budget FROM emp e, proj p WHERE REF(e)= DEREF(p.pdept).mgr GROUP BY e.eno 
-     HAVING SUM(p.budget) = (SELECT MAX(SUM(p2.budget))FROM proj p2 GROUP BY p2.pdept)
+     HAVING SUM(p.budget) = (SELECT MAX(SUM(p2.budget))FROM proj p2 GROUP BY p2.pdept);
