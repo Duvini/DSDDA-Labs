@@ -1,4 +1,4 @@
-CREATE TYPE Depend_t AS OBJECT (
+CREATE TYPE depend_t AS OBJECT(
     depname VARCHAR2(12),
     gender CHAR(1),
     bdate DATE,
@@ -6,88 +6,220 @@ CREATE TYPE Depend_t AS OBJECT (
 );
 /
 
-CREATE TYPE Dependtb_t AS TABLE OF Depend_t;
+CREATE TYPE dependtb_t AS TABLE OF depend_t;
 /
 
-CREATE TYPE Dept_t;
+CREATE TYPE dep_t;
 /
 
-CREATE TYPE Emp_t AS OBJECT (
+CREATE TYPE emp_t AS OBJECT(
     eno NUMBER(4),
     ename VARCHAR2(15),
-    edept REF Dept_t, 
+    edept REF dep_t, 
     salary NUMBER(8,2),
-    dependents Dependtb_t 
+    dependents dependtb_t  
 );
 /
 
-CREATE TYPE Dept_t AS OBJECT (
+CREATE TYPE dep_t AS OBJECT(
     dno NUMBER(2),
     dname VARCHAR2(12),
-    mgr REF Emp_t 
+    mgr REF emp_t 
 );
 /
 
-
-CREATE TYPE Proj_t AS OBJECT (
+CREATE TYPE proj_t AS OBJECT(
     pno NUMBER(4),
     pname VARCHAR2(15),
-    pdept REF Dept_t, 
+    pdept REF dep_t,  
     budget NUMBER(10,2)
 );
 /
 
-CREATE TYPE Work_t AS OBJECT (
-    wemp REF Emp_t, 
-    wproj REF Proj_t, 
+CREATE TYPE work_t AS OBJECT(
+    wemp REF emp_t,  
+    wproj REF proj_t,  
     since DATE,
     hours NUMBER(4,2)
 );
 /
 
-CREATE TABLE Emp OF Emp_t (
+CREATE TABLE emp OF emp_t(
     eno PRIMARY KEY
-)
-NESTED TABLE dependents STORE AS depend_tb;
+) NESTED TABLE dependents STORE AS dependent_tb
 /
 
-CREATE TABLE Dept OF Dept_t (
+CREATE TABLE dept OF dep_t(
     dno PRIMARY KEY
-);
+)
 /
 
-CREATE TABLE Proj OF Proj_t (
+CREATE TABLE proj OF proj_t(
     pno PRIMARY KEY
+)
+/
+
+CREATE TABLE works OF work_t
+/
+
+ALTER TABLE dept ADD CONSTRAINT dept_mgr_fk FOREIGN KEY (mgr) REFERENCES emp;
+ALTER TABLE proj ADD CONSTRAINT proj_dept_fk FOREIGN KEY (pdept) REFERENCES dept;
+ALTER TABLE works ADD CONSTRAINT emp_works_fk FOREIGN KEY (wemp) REFERENCES emp;
+ALTER TABLE emp ADD CONSTRAINT dept_emp_fk FOREIGN KEY (edept) REFERENCES dept;
+ALTER TABLE works ADD CONSTRAINT proj_works_fk FOREIGN KEY (wproj) REFERENCES proj;
+
+-- Insert Departments
+INSERT INTO dept VALUES (dep_t(01, 'SE', NULL));
+INSERT INTO dept VALUES (dep_t(02, 'DS', NULL));
+INSERT INTO dept VALUES (dep_t(03, 'CS', NULL));
+
+-- Insert Employees with Nested Dependents
+INSERT INTO emp VALUES (
+    emp_t(1001, 'Alice', (SELECT REF(d) FROM dept d WHERE d.dname = 'SE'), 50000.00, dependtb_t(
+        depend_t('John', 'M', TO_DATE('2010-05-14', 'YYYY-MM-DD'), 'CHILD'),
+        depend_t('Jane', 'F', TO_DATE('1985-08-22', 'YYYY-MM-DD'), 'SPOUSE')
+    ))
+);
+
+INSERT INTO emp VALUES (
+    emp_t(1002, 'Bob', (SELECT REF(d) FROM dept d WHERE d.dname = 'DS'), 60000.00, dependtb_t())
+);
+
+INSERT INTO emp VALUES (
+    emp_t(1003, 'Charlie', (SELECT REF(d) FROM dept d WHERE d.dname = 'CS'), 45000.00, dependtb_t(
+        depend_t('David', 'M', TO_DATE('2015-09-30', 'YYYY-MM-DD'), 'CHILD')
+    ))
+);
+
+INSERT INTO emp VALUES (
+    emp_t(2143, 'David', (SELECT REF(d) FROM dept d WHERE d.dname = 'DS'), 70000.00, dependtb_t())
+);
+
+-- Insert Projects
+INSERT INTO proj VALUES (proj_t(301, 'AI Research', (SELECT REF(d) FROM dept d WHERE d.dname = 'SE'), 200000.00));
+INSERT INTO proj VALUES (proj_t(302, 'Big Data', (SELECT REF(d) FROM dept d WHERE d.dname = 'DS'), 500000.00));
+INSERT INTO proj VALUES (proj_t(303, 'NS', (SELECT REF(d) FROM dept d WHERE d.dname = 'CS'), 300000.00));
+
+-- Insert Work Assignments
+INSERT INTO works VALUES (
+    work_t(
+        (SELECT REF(e) FROM emp e WHERE e.eno = 1001),
+        (SELECT REF(p) FROM proj p WHERE p.pno = 301),
+        TO_DATE('2023-01-10', 'YYYY-MM-DD'),
+        40
+    )
+);
+
+INSERT INTO works VALUES (
+    work_t(
+        (SELECT REF(e) FROM emp e WHERE e.eno = 1002),
+        (SELECT REF(p) FROM proj p WHERE p.pno = 302),
+        TO_DATE('2023-02-15', 'YYYY-MM-DD'),
+        35
+    )
+);
+
+INSERT INTO works VALUES (
+    work_t(
+        (SELECT REF(e) FROM emp e WHERE e.eno = 1003),
+        (SELECT REF(p) FROM proj p WHERE p.pno = 303),
+        TO_DATE('2023-03-20', 'YYYY-MM-DD'),
+        30
+    )
+);
+
+INSERT INTO works VALUES (
+    work_t(
+        (SELECT REF(e) FROM emp e WHERE e.eno = 2143),
+        (SELECT REF(p) FROM proj p WHERE p.pno = 302),
+        TO_DATE('2023-02-20', 'YYYY-MM-DD'),
+        45
+    )
 );
 /
 
-CREATE TABLE Works OF Work_t;
+UPDATE dept
+SET mgr = (SELECT REF(e) FROM emp e WHERE e.ename = 'Alice')
+WHERE dname = 'SE';
+
+UPDATE dept
+SET mgr = (SELECT REF(e) FROM emp e WHERE e.ename = 'Bob')
+WHERE dname = 'DS';
+
+UPDATE dept
+SET mgr = (SELECT REF(e) FROM emp e WHERE e.ename = 'Charlie')
+WHERE dname = 'CS';
+
+SELECT d.dno, d.dname, DEREF(d.mgr).ename AS manager_name FROM dept d
 /
 
-ALTER TABLE Dept ADD CONSTRAINT dept_mgr_fk FOREIGN KEY (mgr) REFERENCES Emp;
-ALTER TABLE Proj ADD CONSTRAINT proj_dept_fk FOREIGN KEY (pdept) REFERENCES Dept;
-ALTER TABLE Works ADD CONSTRAINT emp_empt_fk FOREIGN KEY (wemp) REFERENCES Emp;
-ALTER TABLE Emp ADD CONSTRAINT dept_edpt_fk FOREIGN KEY (edept) REFERENCES Dept;
-ALTER TABLE Works ADD CONSTRAINT wproj_prj_fk FOREIGN KEY (wproj) REFERENCES Proj;
+(a)
+ALTER TYPE emp_t
+ADD MEMBER FUNCTION childAllowance RETURN FLOAT CASCADE;
+/
 
-INSERT INTO Dept VALUES (Dept_t(10, 'Software Eng', NULL));
-INSERT INTO Dept VALUES (Dept_t(20, 'Data Mining', NULL));
-INSERT INTO Dept VALUES (Dept_t(30, 'CS', NULL));
+CREATE OR REPLACE TYPE BODY emp_t AS
+    MEMBER FUNCTION childAllowance RETURN FLOAT IS
+        chcnt NUMBER := 0;  
+    BEGIN
+        
+        SELECT COUNT(*) INTO chcnt
+        FROM TABLE(SELF.dependents) d  
+        WHERE d.relationship = 'CHILD';
+        
+        RETURN SELF.salary * 0.05 * chcnt;
+    END;
+END;
+/
 
-INSERT INTO Emp VALUES (Emp_t(1001, 'Alice', (SELECT REF(d) FROM Dept d WHERE d.dname = 'Software Eng'), 50000.00, Dependtb_t()));
-INSERT INTO Emp VALUES (Emp_t(1002, 'Bob', (SELECT REF(d) FROM Dept d WHERE d.dname = 'Data Mining'), 60000.00, Dependtb_t()));
-INSERT INTO Emp VALUES (Emp_t(1003, 'Charlie', (SELECT REF(d) FROM Dept d WHERE d.dname = 'CS'), 45000.00, Dependtb_t()));
-INSERT INTO Emp VALUES (Emp_t(2143, 'David', (SELECT REF(d) FROM Dept d WHERE d.dname = 'Data Mining'), 70000.00, Dependtb_t()));
+(b)
+SELECT e.ename AS Employee_Name, 
+       e.salary AS Salary, 
+       e.childAllowance() AS Child_Allowance
+FROM emp e
+WHERE e.childAllowance() > 0;
+/
 
-INSERT INTO Proj VALUES (Proj_t(301, 'AI Research', (SELECT REF(d) FROM Dept d WHERE d.dname = 'Software Eng'), 200000.00));
-INSERT INTO Proj VALUES (Proj_t(302, 'Big Data', (SELECT REF(d) FROM Dept d WHERE d.dname = 'Data Mining'), 500000.00));
-INSERT INTO Proj VALUES (Proj_t(303, 'NS', (SELECT REF(d) FROM Dept d WHERE d.dname = 'CS'), 300000.00));
+(c)
+INSERT INTO TABLE(
+    SELECT e.dependents FROM emp e WHERE e.eno = 2143
+) VALUES (
+    depend_t('Jeremy', 'M', TO_DATE('2001-03-12', 'YYYY-MM-DD'), 'CHILD')
+);
+/
 
-INSERT INTO Works VALUES (Work_t((SELECT REF(e) FROM Emp e WHERE e.eno = 1001), (SELECT REF(p) FROM Proj p WHERE p.pno = 301), TO_DATE('2023-01-10', 'YYYY-MM-DD'), 40));
-INSERT INTO Works VALUES (Work_t((SELECT REF(e) FROM Emp e WHERE e.eno = 1002), (SELECT REF(p) FROM Proj p WHERE p.pno = 302), TO_DATE('2023-02-15', 'YYYY-MM-DD'), 35));
-INSERT INTO Works VALUES (Work_t((SELECT REF(e) FROM Emp e WHERE e.eno = 1003), (SELECT REF(p) FROM Proj p WHERE p.pno = 303), TO_DATE('2023-03-20', 'YYYY-MM-DD'), 30));
-INSERT INTO Works VALUES (Work_t((SELECT REF(e) FROM Emp e WHERE e.eno = 2143), (SELECT REF(p) FROM Proj p WHERE p.pno = 302), TO_DATE('2023-02-20', 'YYYY-MM-DD'), 45));
+SELECT * FROM TABLE(
+    SELECT e.dependents FROM emp e WHERE e.eno = 2143
+);
+/
 
+(d)
+ALTER TYPE emp_t
+ADD MEMBER FUNCTION computeBonus(rate NUMBER) RETURN FLOAT CASCADE;
+/
 
+CREATE OR REPLACE TYPE BODY emp_t AS
+    MEMBER FUNCTION childAllowance RETURN FLOAT IS
+        chcnt NUMBER := 0;  
+    BEGIN
+        SELECT COUNT(*) INTO chcnt
+        FROM TABLE(SELF.dependents) d  
+        WHERE d.relationship = 'CHILD';
+        
+        RETURN SELF.salary * 0.05 * chcnt;
+    END childAllowance;
+    
+    MEMBER FUNCTION computeBonus(rate NUMBER) RETURN FLOAT IS
+    BEGIN
+        RETURN SELF.salary * (rate / 100);
+    END computeBonus;
+END;
+/
 
+(e)
+SELECT e.ename AS Employee_Name, 
+       e.computeBonus(12) AS Bonus_Amount
+FROM emp e
+WHERE DEREF(e.edept).dname = 'DS';
+/
 
