@@ -1,0 +1,246 @@
+/*
+01. Write a procedure called UpdateCourse. It has one parameter called name_in. The procedure 
+will lookup the course_number based on course name. If it does not find a match, it defaults the 
+course number to 10000. It then inserts a new record into the student_courses table. 
+*/
+
+CREATE TYPE Student_Courses_t AS OBJECT (
+	course_id NUMBER,
+	course_name VARCHAR2(50)
+)
+/
+
+CREATE TABLE student_courses OF Student_Courses_t 
+/
+
+INSERT INTO student_courses VALUES (Student_Courses_t(1001, 'Data Science'));
+INSERT INTO student_courses VALUES (Student_Courses_t(1002, 'Cyber Security'));
+INSERT INTO student_courses VALUES (Student_Courses_t(1003, 'Software Engineering'));
+
+DROP PROCEDURE UpdateCourse;
+/
+
+CREATE PROCEDURE UpdateCourse(name_in IN VARCHAR2)
+IS
+	course_number NUMBER;
+BEGIN
+	BEGIN
+		-- Lookup course_number based on course name
+		SELECT c.course_id INTO course_number
+		FROM student_courses c
+		WHERE c.course_name = name_in;
+
+	EXCEPTION
+		WHEN NO_DATA_FOUND THEN
+			course_number := 10000;
+	END;
+
+	-- Insert into student_courses table
+	INSERT INTO student_courses (course_id, course_name) VALUES (course_number, name_in);
+
+	DBMS_OUTPUT.PUT_LINE('Record inserted successfully.');
+
+EXCEPTION
+	WHEN OTHERS THEN 
+		DBMS_OUTPUT.PUT_LINE ('Error: ' || SQLERRM);
+			
+END UpdateCourse;
+/
+
+-- To ckeck output
+SELECT * FROM student_courses;
+
+BEGIN
+    UpdateCourse('Artificial Intelligence');
+END;
+/
+
+BEGIN
+    UpdateCourse('Data Science');
+END;
+/
+
+
+/*
+02. Write a trigger for the customers table that would fire for INSERT or UPDATE or DELETE 
+operations performed on the CUSTOMER table. Trigger should display the salary difference 
+between the old values and new values 
+*/
+
+CREATE TYPE Customer_t AS OBJECT (
+	id NUMBER,
+	name VARCHAR2(20),
+	age NUMBER,
+	address VARCHAR2(50),
+	salary NUMBER
+)
+/
+
+CREATE TABLE Customer OF Customer_t
+/
+
+INSERT INTO Customer VALUES (Customer_t(1, 'Louvis', 23, 'Italy', 50000));
+INSERT INTO Customer VALUES (Customer_t(2, 'Alvin', 36, 'Osbo', 65000));
+INSERT INTO Customer VALUES (Customer_t(3, 'Teri', 55, 'Ohio', 66000));
+INSERT INTO Customer VALUES (Customer_t(4, 'Hardic', 42, 'Mumbai', 55000));
+INSERT INTO Customer VALUES (Customer_t(5, 'Koamal', 47, 'Delhi', 96000));
+INSERT INTO Customer VALUES (Customer_t(6, 'Charles', 36, 'MP', 23000));
+
+CREATE OR REPLACE TRIGGER Salary_Change_Trigger
+AFTER INSERT OR UPDATE OR DELETE
+ON Customer
+FOR EACH ROW
+DECLARE
+    salary_diff NUMBER;
+BEGIN
+    IF INSERTING THEN
+        DBMS_OUTPUT.PUT_LINE('Inserted Salary: ' || :NEW.salary);
+    
+    ELSIF DELETING THEN
+        DBMS_OUTPUT.PUT_LINE('Deleted Salary: ' || :OLD.salary);
+    
+    ELSIF UPDATING THEN
+        salary_diff := :NEW.salary - :OLD.salary;
+        DBMS_OUTPUT.PUT_LINE('Salary Difference: ' || salary_diff);
+    END IF;
+END;
+/
+
+
+-- To check the output
+UPDATE Customer 
+SET salary = 60000 
+WHERE id = 1;
+
+UPDATE Customer 
+SET salary = salary * 1.1 
+WHERE id <= 3;
+
+INSERT INTO Customer VALUES (Customer_t(7, 'Thomas', 29, 'London', 70000));
+
+DELETE FROM Customer WHERE id = 6;
+
+SELECT * FROM Customer ORDER BY id;
+
+
+-- 03
+CREATE TYPE Employee_t AS OBJECT (
+	emp_id NUMBER,
+	name VARCHAR2(20),
+	email VARCHAR2(50),
+	hire_date DATE,
+	phoneNo VARCHAR2(12),
+	job_id VARCHAR2(20),
+	salary NUMBER,
+	commission NUMBER,
+	manager_id NUMBER,
+	dept_id NUMBER
+)
+/
+
+CREATE TABLE Employee OF Employee_t
+/
+
+INSERT INTO Employee VALUES (Employee_t(100, 'Stevan', 'SKING', DATE '1987-06-20', '515.123.1269', 'IT_PROG', 2400, 0, 0, 90));
+INSERT INTO Employee VALUES (Employee_t(101, 'Thivyan', 'LDEHAAN', DATE '1988-08-25', '515.123.4569', 'IT_PROG', 5600, 0, 100, 90));
+INSERT INTO Employee VALUES (Employee_t(102, 'Jenny', 'AHUNOLD', DATE '1987-07-17', '515.123.3697', 'FI_ACCOUNT', 8900, 0, 100, 60));
+INSERT INTO Employee VALUES (Employee_t(103, 'Alex', 'BERNST', DATE '1987-01-30', '515.123.1124', 'PU_MAN', 7800, 0, 102, 60));
+INSERT INTO Employee VALUES (Employee_t(104, 'Bravon', 'DAUSTIN', DATE '1987-11-21', '515.123.9698', 'ST_CLERK', 4500, 0, 103, 100));
+
+/*
+a). Write a PL/SQL program to display the name of the employee and increment 
+    percentage of salary according to their working experiences
+*/
+
+DECLARE
+	emp_name Employee.name%TYPE;
+	emp_exp NUMBER;
+	salary_inc_percent NUMBER;
+BEGIN
+	FOR emp IN (SELECT name, hire_date FROM Employee)
+	LOOP
+		emp_name := emp.name;
+		emp_exp := ROUND(MONTHS_BETWEEN(SYSDATE, emp.hire_dte) / 12);
+
+		-- Define salary increment based on experience
+		IF emp_exp > 20 THEN
+			salary_inc_percent := 20;
+		ELSIF emp_exp BETWEEN 10 AND 20 THEN
+			salary_inc_percent := 15;
+		ELSE
+			salary_inc_percent := 10;
+		END IF;	
+
+		DBMS_OUTPUT.PUT_LINE('Employee: ' || emp_name || ' - Salary Increment: ' || salary_inc_percent || '%');
+	END LOOP;
+END;
+/
+
+
+/*
+b). Write a PL/SQL block to display the employee ID, first name, job title and the start date of present job
+*/
+
+DECLARE 
+    emp_id Employee.emp_id%TYPE;
+    emp_name Employee.name%TYPE;
+    job_title Employee.job_id%TYPE;
+    start_date Employee.hire_date%TYPE;
+BEGIN
+    FOR emp IN (SELECT emp_id, name, job_id, hire_date FROM Employee) 
+    LOOP
+        emp_id := emp.emp_id;
+        emp_name := emp.name;
+        job_title := emp.job_id;
+        start_date := emp.hire_date;
+
+        DBMS_OUTPUT.PUT_LINE('ID: ' || emp_id || ', Name: ' || emp_name || ', Job: ' || job_title || ', Start Date: ' || start_date);
+    END LOOP;
+END;
+/
+
+
+/*
+c). Create a PL/SQL block to increase salary of employees in the department 50 using WHERE CURRENT OF clause
+*/
+
+DECLARE
+    CURSOR emp_cursor IS 
+        SELECT emp_id, salary FROM Employee WHERE dept_id = 50
+        FOR UPDATE;
+BEGIN
+    FOR emp IN emp_cursor LOOP
+        UPDATE Employee 
+        SET salary = salary * 1.1 
+        WHERE CURRENT OF emp_cursor;
+    END LOOP;
+
+    COMMIT;
+    DBMS_OUTPUT.PUT_LINE('Salary updated for department 50.');
+END;
+/
+
+
+/*
+d). Write a program in PL/SQL to create a cursor displays the name and salary of each 
+    employee in the EMPLOYEES table whose salary is less than that specified by a passed in parameter value
+*/
+
+DECLARE
+    CURSOR emp_cursor (max_salary NUMBER) IS
+        SELECT name, salary FROM Employee WHERE salary < max_salary;
+    
+    emp_name Employee.name%TYPE;
+    emp_salary Employee.salary%TYPE;
+BEGIN
+    OPEN emp_cursor(5000);  
+    LOOP
+        FETCH emp_cursor INTO emp_name, emp_salary;
+        EXIT WHEN emp_cursor%NOTFOUND;
+
+        DBMS_OUTPUT.PUT_LINE('Name: ' || emp_name || ', Salary: ' || emp_salary);
+    END LOOP;
+    
+    CLOSE emp_cursor;
+END;
+/
